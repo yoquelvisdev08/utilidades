@@ -35,16 +35,30 @@ import PaletteIcon from '@mui/icons-material/Palette';
 import FormatPaintIcon from '@mui/icons-material/FormatPaint';
 import GradientIcon from '@mui/icons-material/Gradient';
 
-// Importar los componentes
+// Importar los componentes de conversión
 import ImageConverter from './converters/ImageConverter';
 import DocumentConverter from './converters/DocumentConverter';
 import AudioConverter from './converters/AudioConverter';
 import VideoConverter from './converters/VideoConverter';
 import QRGenerator from './QRGenerator';
 import ImageCompressor from './ImageCompressor';
-import TextTools from './TextTools';
-import AITextGenerator from './AITextGenerator';
-import OCRTool from './OCRTool';
+import TexTools from './TextTools'
+import AITextGenerator from'./AITextGenerator'
+import OCRTool from './OCRTool'
+import JsonEditor from './JsonEditor'
+import CodeFormatter from './CodeFormatter'
+import CodeMinifier from './CodeMinifier'
+import CodeDiff from './CodeDiff'
+import ColorPicker from './ColorPicker';
+import GradientGenerator from './GradientGenerator';
+import PaletteGenerator from './PaletteGenerator';
+import CSSGenerator from './CSSGenerator';
+import ChartGenerator from './ChartGenerator'
+import Calculator from './Calculator'
+import Translator from './Translator'
+import Timer from './Timer'
+
+
 
 const tools = [
   {
@@ -107,7 +121,7 @@ const tools = [
         description: 'Reduce el tamaño de tus imágenes manteniendo la calidad',
         icon: CompressIcon,
         color: '#009688',
-        component: ImageCompressor
+        component: ImageCompressor // Por implementar
       },
       {
         id: 'text',
@@ -115,7 +129,7 @@ const tools = [
         description: 'Manipula y formatea texto con múltiples herramientas',
         icon: TextFieldsIcon,
         color: '#795548',
-        component: TextTools
+        component: TexTools // Por implementar
       },
       {
         id: 'ai',
@@ -123,7 +137,7 @@ const tools = [
         description: 'Genera texto utilizando inteligencia artificial',
         icon: SmartToyIcon,
         color: '#3F51B5',
-        component: AITextGenerator
+        component: AITextGenerator // Por implementar
       },
       {
         id: 'ocr',
@@ -131,7 +145,7 @@ const tools = [
         description: 'Extrae texto de imágenes y documentos escaneados',
         icon: DocumentScannerIcon,
         color: '#607D8B',
-        component: OCRTool
+        component: OCRTool // Por implementar
       }
     ]
   },
@@ -145,7 +159,7 @@ const tools = [
         description: 'Formatea, valida y transforma datos JSON',
         icon: DataObjectIcon,
         color: '#F44336',
-        component: null // Por implementar
+        component: JsonEditor // Por implementar
       },
       {
         id: 'code',
@@ -153,7 +167,7 @@ const tools = [
         description: 'Formatea código en varios lenguajes de programación',
         icon: CodeIcon,
         color: '#9C27B0',
-        component: null // Por implementar
+        component: CodeFormatter // Por implementar
       },
       {
         id: 'minifier',
@@ -161,7 +175,7 @@ const tools = [
         description: 'Minifica JavaScript, CSS y HTML',
         icon: CompressIcon,
         color: '#FF5722',
-        component: null // Por implementar
+        component: CodeMinifier // Por implementar
       },
       {
         id: 'diff',
@@ -169,7 +183,7 @@ const tools = [
         description: 'Compara y encuentra diferencias entre códigos',
         icon: CodeIcon,
         color: '#795548',
-        component: null // Por implementar
+        component: CodeDiff // Por implementar
       }
     ]
   },
@@ -183,7 +197,7 @@ const tools = [
         description: 'Herramienta avanzada para selección de colores',
         icon: ColorLensIcon,
         color: '#E91E63',
-        component: null // Por implementar
+        component: ColorPicker
       },
       {
         id: 'gradient',
@@ -191,7 +205,7 @@ const tools = [
         description: 'Crea gradientes CSS personalizados',
         icon: GradientIcon,
         color: '#9C27B0',
-        component: null // Por implementar
+        component: GradientGenerator
       },
       {
         id: 'palette',
@@ -199,7 +213,7 @@ const tools = [
         description: 'Genera paletas de colores armoniosas',
         icon: PaletteIcon,
         color: '#673AB7',
-        component: null // Por implementar
+        component: PaletteGenerator
       },
       {
         id: 'css',
@@ -207,7 +221,7 @@ const tools = [
         description: 'Genera estilos CSS para botones, sombras y más',
         icon: FormatPaintIcon,
         color: '#3F51B5',
-        component: null // Por implementar
+        component: CSSGenerator
       }
     ]
   },
@@ -221,7 +235,7 @@ const tools = [
         description: 'Traduce texto entre múltiples idiomas',
         icon: TranslateIcon,
         color: '#2196F3',
-        component: null // Por implementar
+        component: Translator // Por implementar
       },
       {
         id: 'calculator',
@@ -229,7 +243,7 @@ const tools = [
         description: 'Realiza cálculos matemáticos complejos',
         icon: CalculateIcon,
         color: '#00BCD4',
-        component: null // Por implementar
+        component: Calculator // Por implementar
       },
       {
         id: 'charts',
@@ -237,7 +251,7 @@ const tools = [
         description: 'Crea gráficos a partir de datos',
         icon: BarChartIcon,
         color: '#4CAF50',
-        component: null // Por implementar
+        component: ChartGenerator // Por implementar
       },
       {
         id: 'encryption',
@@ -253,7 +267,7 @@ const tools = [
         description: 'Herramientas de medición de tiempo',
         icon: TimerIcon,
         color: '#795548',
-        component: null // Por implementar
+        component: Timer // Por implementar
       }
     ]
   }
