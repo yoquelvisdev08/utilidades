@@ -26,7 +26,7 @@ import {
   Snackbar,
   FormControlLabel,
   Switch,
-  Tooltip
+  Tooltip 
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -34,6 +34,7 @@ import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import HistoryIcon from '@mui/icons-material/History';
 import InfoIcon from '@mui/icons-material/Info';
+import QRCode from 'qrcode';
 
 const qrTypes = {
   text: {
@@ -125,12 +126,21 @@ function QRGenerator() {
 
   const generateQR = async () => {
     try {
-      // Aquí iría la integración real con una API de generación de QR
       const data = encodeData();
       if (!data) return;
 
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(data)}&size=${settings.size}x${settings.size}&margin=${settings.margin}`;
-      setQrImage(qrUrl);
+      const qrOptions = {
+        width: settings.size,
+        margin: settings.margin,
+        color: {
+          dark: settings.foreground,
+          light: settings.background
+        },
+        errorCorrectionLevel: settings.errorCorrection
+      };
+
+      const qrDataUrl = await QRCode.toDataURL(data, qrOptions);
+      setQrImage(qrDataUrl);
 
       // Guardar en historial
       const historyItem = {
@@ -138,14 +148,20 @@ function QRGenerator() {
         type,
         data: formData,
         settings: { ...settings },
-        qrUrl,
+        qrUrl: qrDataUrl,
         timestamp: new Date().toISOString()
       };
       setHistory(prev => [historyItem, ...prev]);
+
+      setNotification({
+        open: true,
+        message: 'Código QR generado exitosamente',
+        severity: 'success'
+      });
     } catch (error) {
       setNotification({
         open: true,
-        message: 'Error al generar el código QR',
+        message: 'Error al generar el código QR: ' + error.message,
         severity: 'error'
       });
     }
@@ -199,8 +215,18 @@ END:VCARD`;
     const isFavorite = favorites.some(fav => fav.id === item.id);
     if (isFavorite) {
       setFavorites(prev => prev.filter(fav => fav.id !== item.id));
+      setNotification({
+        open: true,
+        message: 'Eliminado de favoritos',
+        severity: 'info'
+      });
     } else {
       setFavorites(prev => [...prev, item]);
+      setNotification({
+        open: true,
+        message: 'Agregado a favoritos',
+        severity: 'success'
+      });
     }
   };
 
@@ -210,10 +236,30 @@ END:VCARD`;
     setSettings(item.settings);
     setQrImage(item.qrUrl);
     setShowHistory(false);
+    setNotification({
+      open: true,
+      message: 'Código QR cargado',
+      severity: 'info'
+    });
   };
 
   const handleCloseNotification = () => {
     setNotification({ ...notification, open: false });
+  };
+
+  const validateForm = () => {
+    const fields = qrTypes[type].fields;
+    for (const field of fields) {
+      if (!formData[field.name] || formData[field.name].trim() === '') {
+        setNotification({
+          open: true,
+          message: `El campo ${field.label} es requerido`,
+          severity: 'warning'
+        });
+        return false;
+      }
+    }
+    return true;
   };
 
   return (
@@ -263,6 +309,7 @@ END:VCARD`;
                     multiline={field.multiline}
                     rows={field.multiline ? 4 : 1}
                     placeholder={field.placeholder}
+                    required
                   />
                 )}
               </Grid>
@@ -317,6 +364,20 @@ END:VCARD`;
                     <MenuItem value="H">Máxima (30%)</MenuItem>
                   </Select>
                 </FormControl>
+              </Grid>
+              <Grid item xs={12}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={() => {
+                    if (validateForm()) {
+                      generateQR();
+                    }
+                  }}
+                  disabled={!Object.keys(formData).length}
+                >
+                  Generar QR
+                </Button>
               </Grid>
             </Grid>
           </Box>

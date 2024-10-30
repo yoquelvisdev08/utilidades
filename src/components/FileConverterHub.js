@@ -35,11 +35,16 @@ import PaletteIcon from '@mui/icons-material/Palette';
 import FormatPaintIcon from '@mui/icons-material/FormatPaint';
 import GradientIcon from '@mui/icons-material/Gradient';
 
-// Importar los componentes de conversión
+// Importar los componentes
 import ImageConverter from './converters/ImageConverter';
 import DocumentConverter from './converters/DocumentConverter';
 import AudioConverter from './converters/AudioConverter';
 import VideoConverter from './converters/VideoConverter';
+import QRGenerator from './QRGenerator';
+import ImageCompressor from './ImageCompressor';
+import TextTools from './TextTools';
+import AITextGenerator from './AITextGenerator';
+import OCRTool from './OCRTool';
 
 const tools = [
   {
@@ -94,7 +99,7 @@ const tools = [
         description: 'Crea códigos QR personalizados para enlaces, texto, contactos y más',
         icon: QrCodeIcon,
         color: '#673AB7',
-        component: null // Por implementar
+        component: QRGenerator
       },
       {
         id: 'compressor',
@@ -102,7 +107,7 @@ const tools = [
         description: 'Reduce el tamaño de tus imágenes manteniendo la calidad',
         icon: CompressIcon,
         color: '#009688',
-        component: null // Por implementar
+        component: ImageCompressor
       },
       {
         id: 'text',
@@ -110,7 +115,7 @@ const tools = [
         description: 'Manipula y formatea texto con múltiples herramientas',
         icon: TextFieldsIcon,
         color: '#795548',
-        component: null // Por implementar
+        component: TextTools
       },
       {
         id: 'ai',
@@ -118,7 +123,7 @@ const tools = [
         description: 'Genera texto utilizando inteligencia artificial',
         icon: SmartToyIcon,
         color: '#3F51B5',
-        component: null // Por implementar
+        component: AITextGenerator
       },
       {
         id: 'ocr',
@@ -126,7 +131,7 @@ const tools = [
         description: 'Extrae texto de imágenes y documentos escaneados',
         icon: DocumentScannerIcon,
         color: '#607D8B',
-        component: null // Por implementar
+        component: OCRTool
       }
     ]
   },

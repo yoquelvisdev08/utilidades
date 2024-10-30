@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   Paper,
   Typography,
@@ -23,34 +23,34 @@ import {
   DialogContent,
   DialogActions,
   Tooltip,
-  Divider
+  Divider,
+  LinearProgress
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DownloadIcon from '@mui/icons-material/Download';
 import HistoryIcon from '@mui/icons-material/History';
-import TranslateIcon from '@mui/icons-material/Translate';
 import EditIcon from '@mui/icons-material/Edit';
-import SaveIcon from '@mui/icons-material/Save';
+import { createWorker } from 'tesseract.js';
 
 const languages = [
-  { code: 'es', name: 'Español' },
-  { code: 'en', name: 'Inglés' },
-  { code: 'fr', name: 'Francés' },
-  { code: 'de', name: 'Alemán' },
-  { code: 'it', name: 'Italiano' },
-  { code: 'pt', name: 'Portugués' },
-  { code: 'ru', name: 'Ruso' },
-  { code: 'zh', name: 'Chino' },
-  { code: 'ja', name: 'Japonés' },
-  { code: 'ko', name: 'Coreano' }
+  { code: 'spa', name: 'Español' },
+  { code: 'eng', name: 'Inglés' },
+  { code: 'fra', name: 'Francés' },
+  { code: 'deu', name: 'Alemán' },
+  { code: 'ita', name: 'Italiano' },
+  { code: 'por', name: 'Portugués' },
+  { code: 'rus', name: 'Ruso' },
+  { code: 'chi_sim', name: 'Chino Simplificado' },
+  { code: 'jpn', name: 'Japonés' },
+  { code: 'kor', name: 'Coreano' }
 ];
 
 function OCRTool() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [extractedTexts, setExtractedTexts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [language, setLanguage] = useState('es');
+  const [language, setLanguage] = useState('spa');
   const [notification, setNotification] = useState({
     open: false,
     message: '',
@@ -61,8 +61,9 @@ function OCRTool() {
   const [editingText, setEditingText] = useState(null);
   const [editDialog, setEditDialog] = useState(false);
   const [editedContent, setEditedContent] = useState('');
+  const [progress, setProgress] = useState(0);
 
-  const handleFileSelect = (event) => {
+  const handleFileSelect = useCallback((event) => {
     const files = Array.from(event.target.files).map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       file,
@@ -70,21 +71,34 @@ function OCRTool() {
     }));
 
     setSelectedFiles(prev => [...prev, ...files]);
-  };
+  }, []);
 
   const extractText = async (file) => {
     setLoading(true);
+    setProgress(0);
+    
     try {
-      // Aquí iría la integración real con una API de OCR
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const worker = await createWorker({
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            setProgress(Math.round(m.progress * 100));
+          }
+        }
+      });
+
+      await worker.loadLanguage(language);
+      await worker.initialize(language);
       
+      const { data: { text, confidence } } = await worker.recognize(file.preview);
+      await worker.terminate();
+
       const extractedText = {
         id: file.id,
         fileName: file.file.name,
-        content: 'Texto extraído de ejemplo...\nEsta es una demostración del OCR.',
+        content: text,
         language,
         timestamp: new Date().toISOString(),
-        confidence: Math.random() * 100
+        confidence
       };
 
       setExtractedTexts(prev => [...prev, extractedText]);
@@ -96,34 +110,36 @@ function OCRTool() {
         severity: 'success'
       });
     } catch (error) {
+      console.error('Error en OCR:', error);
       setNotification({
         open: true,
-        message: 'Error al extraer el texto',
+        message: `Error al extraer el texto: ${error.message}`,
         severity: 'error'
       });
     } finally {
       setLoading(false);
+      setProgress(0);
     }
   };
 
-  const handleExtractAll = async () => {
+  const handleExtractAll = useCallback(async () => {
     for (const file of selectedFiles) {
       if (!extractedTexts.some(text => text.id === file.id)) {
         await extractText(file);
       }
     }
-  };
+  }, [selectedFiles, extractedTexts]);
 
-  const handleCopy = (text) => {
+  const handleCopy = useCallback((text) => {
     navigator.clipboard.writeText(text.content);
     setNotification({
       open: true,
       message: 'Texto copiado al portapapeles',
       severity: 'success'
     });
-  };
+  }, []);
 
-  const handleDownload = (text) => {
+  const handleDownload = useCallback((text) => {
     const blob = new Blob([text.content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -133,12 +149,11 @@ function OCRTool() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
+  }, []);
 
-  const handleDelete = (id) => {
+  const handleDelete = useCallback((id) => {
     setSelectedFiles(prev => {
       const newFiles = prev.filter(f => f.id !== id);
-      // Limpiar URLs
       const file = prev.find(f => f.id === id);
       if (file) {
         URL.revokeObjectURL(file.preview);
@@ -146,15 +161,15 @@ function OCRTool() {
       return newFiles;
     });
     setExtractedTexts(prev => prev.filter(text => text.id !== id));
-  };
+  }, []);
 
-  const handleEdit = (text) => {
+  const handleEdit = useCallback((text) => {
     setEditingText(text);
     setEditedContent(text.content);
     setEditDialog(true);
-  };
+  }, []);
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = useCallback(() => {
     setExtractedTexts(prev =>
       prev.map(text =>
         text.id === editingText.id
@@ -163,11 +178,11 @@ function OCRTool() {
       )
     );
     setEditDialog(false);
-  };
+  }, [editingText, editedContent]);
 
-  const handleCloseNotification = () => {
-    setNotification({ ...notification, open: false });
-  };
+  const handleCloseNotification = useCallback(() => {
+    setNotification(prev => ({ ...prev, open: false }));
+  }, []);
 
   return (
     <Grid container spacing={3}>
@@ -289,6 +304,7 @@ function OCRTool() {
                       sx={{
                         height: '200px',
                         display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
                         bgcolor: '#f5f5f5',
@@ -296,7 +312,15 @@ function OCRTool() {
                       }}
                     >
                       {loading ? (
-                        <CircularProgress />
+                        <>
+                          <CircularProgress />
+                          <Box sx={{ width: '100%', mt: 2 }}>
+                            <LinearProgress variant="determinate" value={progress} />
+                            <Typography variant="caption" align="center" display="block">
+                              {progress.toFixed(1)}%
+                            </Typography>
+                          </Box>
+                        </>
                       ) : (
                         <Button
                           onClick={() => extractText(file)}

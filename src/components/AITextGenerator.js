@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Paper,
   Typography,
@@ -13,13 +13,11 @@ import {
   Alert,
   Snackbar,
   Box,
-  Chip,
   List,
   ListItem,
   ListItemText,
   IconButton,
   Slider,
-  Divider,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -30,12 +28,12 @@ import {
   Tooltip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import SaveIcon from '@mui/icons-material/Save';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
 import HistoryIcon from '@mui/icons-material/History';
 import TuneIcon from '@mui/icons-material/Tune';
-import InfoIcon from '@mui/icons-material/Info';
+
+const API_URL = 'http://localhost:3001/api';
 
 const contentTypes = {
   general: {
@@ -64,33 +62,6 @@ const contentTypes = {
       'Artículo técnico sobre desarrollo web',
       'Artículo de opinión sobre el cambio climático'
     ]
-  },
-  story: {
-    name: 'Historia',
-    description: 'Crea historias creativas y entretenidas',
-    examples: [
-      'Historia corta de ciencia ficción',
-      'Cuento infantil sobre la amistad',
-      'Historia de misterio en una casa antigua'
-    ]
-  },
-  social: {
-    name: 'Redes Sociales',
-    description: 'Contenido optimizado para redes sociales',
-    examples: [
-      'Post de LinkedIn sobre liderazgo',
-      'Tweet viral sobre tecnología',
-      'Descripción de Instagram para una foto de viaje'
-    ]
-  },
-  script: {
-    name: 'Guión',
-    description: 'Guiones para videos, podcasts o presentaciones',
-    examples: [
-      'Guión para un video tutorial de 5 minutos',
-      'Introducción para un podcast de tecnología',
-      'Presentación sobre innovación empresarial'
-    ]
   }
 };
 
@@ -105,26 +76,51 @@ const tones = [
   'Creativo'
 ];
 
+const initialSettings = {
+  tone: 'Profesional',
+  temperature: 0.7,
+  max_tokens: 500
+};
+
 function AITextGenerator() {
   const [prompt, setPrompt] = useState('');
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState('general');
-  const [notification, setNotification] = useState({
-    open: false,
-    message: '',
-    severity: 'info'
-  });
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   const [savedResults, setSavedResults] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
-  const [settings, setSettings] = useState({
-    tone: 'Profesional',
-    length: 500,
-    creativity: 0.7
-  });
+  const [settings, setSettings] = useState(initialSettings);
 
-  const generateText = async () => {
+  const handleCloseNotification = useCallback(() => {
+    setNotification(prev => ({ ...prev, open: false }));
+  }, []);
+
+  const waitForResult = useCallback(async (predictionId) => {
+    const maxAttempts = 20;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(`${API_URL}/generate/${predictionId}`);
+        if (!response.ok) throw new Error("Error al obtener el resultado");
+
+        const prediction = await response.json();
+        if (prediction.status === "succeeded") return prediction.output;
+        if (prediction.status === "failed") throw new Error("La generación de texto falló");
+
+        attempts += 1;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error('Error en waitForResult:', error);
+        throw error;
+      }
+    }
+    throw new Error("Tiempo de espera agotado");
+  }, []);
+
+  const generateText = useCallback(async () => {
     if (!prompt.trim()) {
       setNotification({
         open: true,
@@ -136,19 +132,40 @@ function AITextGenerator() {
 
     setLoading(true);
     try {
-      // Aquí iría la integración real con una API de IA
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const generatedText = `Texto generado basado en tu prompt: "${prompt}"\n\n` +
-        `Usando el tipo: ${contentTypes[type].name}\n` +
-        `Tono: ${settings.tone}\n` +
-        `Longitud aproximada: ${settings.length} palabras\n` +
-        `Nivel de creatividad: ${settings.creativity * 100}%\n\n` +
-        'Lorem ipsum dolor sit amet...';
+      const enhancedPrompt = `
+        [INSTRUCCIÓN]
+        Actúa como un asistente experto en generar ${contentTypes[type].name.toLowerCase()}.
+        Usa un tono ${settings.tone.toLowerCase()}.
+        
+        [CONTEXTO]
+        Tipo de contenido: ${contentTypes[type].name}
+        Tono deseado: ${settings.tone}
+        
+        [TAREA]
+        ${prompt}
+      `;
 
-      setResult(generatedText);
+      const response = await fetch(`${API_URL}/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: enhancedPrompt,
+          temperature: settings.temperature,
+          max_tokens: settings.max_tokens,
+          top_p: 0.9
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al conectar con el servicio de IA');
+      }
+
+      const prediction = await response.json();
+      const generatedText = await waitForResult(prediction.id);
       
-      // Guardar en historial
+      setResult(generatedText);
       setSavedResults(prev => [{
         id: Date.now(),
         prompt,
@@ -164,45 +181,55 @@ function AITextGenerator() {
         severity: 'success'
       });
     } catch (error) {
+      console.error('Error en generateText:', error);
       setNotification({
         open: true,
-        message: 'Error al generar el texto',
+        message: error.message || 'Error al generar el texto',
         severity: 'error'
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [prompt, type, settings, waitForResult]);
 
-  const handleCopy = () => {
+  const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(result);
     setNotification({
       open: true,
       message: 'Texto copiado al portapapeles',
       severity: 'success'
     });
-  };
+  }, [result]);
 
-  const handleDelete = (id) => {
+  const handleDelete = useCallback((id) => {
     setSavedResults(prev => prev.filter(item => item.id !== id));
-  };
+  }, []);
 
-  const handleLoadSaved = (saved) => {
+  const handleLoadSaved = useCallback((saved) => {
     setPrompt(saved.prompt);
     setResult(saved.result);
     setType(saved.type);
     setSettings(saved.settings);
     setShowHistory(false);
-  };
+  }, []);
 
-  const handleCloseNotification = () => {
-    setNotification({ ...notification, open: false });
-  };
+  useEffect(() => {
+    return () => {
+      // Cleanup function
+      setResult('');
+      setLoading(false);
+      setNotification({ open: false, message: '', severity: 'info' });
+    };
+  }, []);
 
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={8}>
+      <Grid item xs={12}>
         <Paper elevation={0} sx={{ p: 3, border: '1px solid #e0e0e0', borderRadius: 2 }}>
+          <Typography variant="h5" gutterBottom>
+            Generador de Texto con LLaMA 2
+          </Typography>
+          
           <Box sx={{ mb: 3 }}>
             <FormControl fullWidth>
               <InputLabel>Tipo de Contenido</InputLabel>
@@ -281,7 +308,7 @@ function AITextGenerator() {
                     <Select
                       value={settings.tone}
                       label="Tono"
-                      onChange={(e) => setSettings({ ...settings, tone: e.target.value })}
+                      onChange={(e) => setSettings(prev => ({ ...prev, tone: e.target.value }))}
                     >
                       {tones.map(tone => (
                         <MenuItem value={tone} key={tone}>{tone}</MenuItem>
@@ -292,11 +319,29 @@ function AITextGenerator() {
 
                 <Grid item xs={12}>
                   <Typography gutterBottom>
-                    Longitud aproximada (palabras): {settings.length}
+                    Creatividad: {(settings.temperature * 100).toFixed(0)}%
                   </Typography>
                   <Slider
-                    value={settings.length}
-                    onChange={(e, newValue) => setSettings({ ...settings, length: newValue })}
+                    value={settings.temperature}
+                    onChange={(e, newValue) => setSettings(prev => ({ ...prev, temperature: newValue }))}
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    marks={[
+                      { value: 0, label: 'Preciso' },
+                      { value: 0.5, label: 'Balanceado' },
+                      { value: 1, label: 'Creativo' }
+                    ]}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography gutterBottom>
+                    Longitud máxima: {settings.max_tokens} tokens
+                  </Typography>
+                  <Slider
+                    value={settings.max_tokens}
+                    onChange={(e, newValue) => setSettings(prev => ({ ...prev, max_tokens: newValue }))}
                     min={100}
                     max={2000}
                     step={100}
@@ -304,24 +349,6 @@ function AITextGenerator() {
                       { value: 100, label: '100' },
                       { value: 1000, label: '1000' },
                       { value: 2000, label: '2000' }
-                    ]}
-                  />
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Typography gutterBottom>
-                    Nivel de Creatividad: {(settings.creativity * 100).toFixed(0)}%
-                  </Typography>
-                  <Slider
-                    value={settings.creativity}
-                    onChange={(e, newValue) => setSettings({ ...settings, creativity: newValue })}
-                    min={0}
-                    max={1}
-                    step={0.1}
-                    marks={[
-                      { value: 0, label: 'Conservador' },
-                      { value: 0.5, label: 'Balanceado' },
-                      { value: 1, label: 'Creativo' }
                     ]}
                   />
                 </Grid>
@@ -372,41 +399,6 @@ function AITextGenerator() {
         </Paper>
       </Grid>
 
-      <Grid item xs={12} md={4}>
-        <Paper elevation={0} sx={{ p: 3, border: '1px solid #e0e0e0', borderRadius: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Consejos para Mejores Resultados
-          </Typography>
-          
-          <List>
-            <ListItem>
-              <ListItemText
-                primary="Sé específico"
-                secondary="Cuanto más detallado sea tu prompt, mejores resultados obtendrás"
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="Usa el tipo correcto"
-                secondary="Selecciona el tipo de contenido que mejor se ajuste a tus necesidades"
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="Ajusta la creatividad"
-                secondary="Un nivel más alto de creatividad puede generar resultados más únicos"
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="Experimenta con el tono"
-                secondary="El tono puede cambiar significativamente el resultado final"
-              />
-            </ListItem>
-          </List>
-        </Paper>
-      </Grid>
-
       <Dialog
         open={showHistory}
         onClose={() => setShowHistory(false)}
@@ -432,25 +424,15 @@ function AITextGenerator() {
                   }}
                 >
                   <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="subtitle2">
-                          {item.prompt.slice(0, 50)}...
-                        </Typography>
-                        <Chip
-                          label={contentTypes[item.type].name}
-                          size="small"
-                        />
-                      </Box>
-                    }
+                    primary={item.prompt.slice(0, 50) + '...'}
                     secondary={
                       <>
                         <Typography variant="caption" display="block">
                           {new Date(item.timestamp).toLocaleString()}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          Tono: {item.settings.tone}, 
-                          Longitud: {item.settings.length} palabras
+                          Tipo: {contentTypes[item.type].name}, 
+                          Tono: {item.settings.tone}
                         </Typography>
                       </>
                     }
