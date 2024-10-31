@@ -57,8 +57,7 @@ import ChartGenerator from './ChartGenerator'
 import Calculator from './Calculator'
 import Translator from './Translator'
 import Timer from './Timer'
-
-
+import Encryption from './Encryption'
 
 const tools = [
   {
@@ -259,7 +258,7 @@ const tools = [
         description: 'Encripta y desencripta texto',
         icon: SecurityIcon,
         color: '#FF5722',
-        component: null // Por implementar
+        component: Encryption
       },
       {
         id: 'timer',

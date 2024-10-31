@@ -14,16 +14,17 @@ import {
   InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
 
-const FileUploader = ({ onFileSelect }) => {
+const FileUploader = ({ onFileSelect, accept, multiple = true }) => {
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles.length > 0) {
-      onFileSelect(acceptedFiles[0]);
+      onFileSelect(acceptedFiles);
     }
   }, [onFileSelect]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    multiple: false,
+    multiple,
+    accept: accept ? { [accept.split('/')[0]]: [accept] } : undefined
   });
 
   return (
@@ -49,12 +50,12 @@ const FileUploader = ({ onFileSelect }) => {
         <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
         <Typography variant="h6" gutterBottom>
           {isDragActive ? 
-            'Suelta el archivo aquí' : 
-            'Arrastra y suelta tu archivo aquí'
+            'Suelta los archivos aquí' : 
+            'Arrastra y suelta tus archivos aquí'
           }
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          o haz clic para seleccionar un archivo
+          o haz clic para seleccionar archivos
         </Typography>
         
         <List sx={{ mt: 2, width: '100%', maxWidth: 360, mx: 'auto' }}>
@@ -64,7 +65,7 @@ const FileUploader = ({ onFileSelect }) => {
             </ListItemIcon>
             <ListItemText 
               primary="Formatos soportados"
-              secondary="PDF, DOCX, XLSX, JPG, PNG y más"
+              secondary={accept ? `Archivos ${accept.split('/')[1].toUpperCase()}` : "Todos los archivos"}
             />
           </ListItem>
         </List>

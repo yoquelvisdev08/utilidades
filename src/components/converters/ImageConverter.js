@@ -20,8 +20,9 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
 import FileUploader from '../FileUploader';
+import { convertImage, imageSettings } from '../../services/converters/imageConverter';
 
-const supportedFormats = ['jpg', 'png', 'gif', 'webp', 'svg', 'bmp'];
+const supportedFormats = ['jpg', 'png', 'gif', 'webp'];
 
 function ImageConverter() {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -71,7 +72,7 @@ function ImageConverter() {
   };
 
   const handleConvert = async () => {
-    if (!selectedFiles || !targetFormat) {
+    if (!selectedFiles.length || !targetFormat) {
       setNotification({
         open: true,
         message: 'Por favor selecciona un archivo y formato de destino',
@@ -82,19 +83,26 @@ function ImageConverter() {
 
     setLoading(true);
     try {
-      // Aquí iría la lógica de conversión
-      // Por ahora solo simulamos un delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const converted = await Promise.all(
+        selectedFiles.map(async (fileObj) => {
+          const result = await convertImage(fileObj.file, targetFormat, settings);
+          return {
+            id: fileObj.id,
+            ...result
+          };
+        })
+      );
 
+      setConvertedFiles(converted);
       setNotification({
         open: true,
-        message: 'Imagen convertida exitosamente',
+        message: 'Imágenes convertidas exitosamente',
         severity: 'success'
       });
     } catch (error) {
       setNotification({
         open: true,
-        message: 'Error al convertir la imagen',
+        message: `Error al convertir las imágenes: ${error.message}`,
         severity: 'error'
       });
     } finally {
@@ -116,12 +124,15 @@ function ImageConverter() {
     });
   };
 
-  const handleConvertAll = async () => {
-    // Implementation for converting all files
-  };
-
   const handleDownload = (convertedFile) => {
-    // Implementation for downloading converted file
+    const url = URL.createObjectURL(convertedFile.file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = convertedFile.file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -138,20 +149,102 @@ function ImageConverter() {
           />
 
           {Object.keys(previews).length > 0 && (
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
-              {Object.keys(previews).map(file => (
-                <img
-                  key={file}
-                  src={previews[file]}
-                  alt={file}
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '300px',
-                    borderRadius: '8px',
-                    margin: '10px'
-                  }}
-                />
-              ))}
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Imágenes seleccionadas:
+              </Typography>
+              <Grid container spacing={2}>
+                {selectedFiles.map((fileObj) => (
+                  <Grid item xs={12} sm={6} md={4} key={fileObj.id}>
+                    <Paper 
+                      elevation={0} 
+                      sx={{ 
+                        p: 1, 
+                        border: '1px solid #e0e0e0',
+                        borderRadius: 1,
+                        position: 'relative'
+                      }}
+                    >
+                      <img
+                        src={previews[fileObj.file.name]}
+                        alt={fileObj.file.name}
+                        style={{
+                          width: '100%',
+                          height: '150px',
+                          objectFit: 'cover',
+                          borderRadius: '4px'
+                        }}
+                      />
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="body2" noWrap>
+                          {fileObj.file.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {(fileObj.file.size / 1024).toFixed(1)} KB
+                        </Typography>
+                      </Box>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleRemoveFile(fileObj)}
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          bgcolor: 'rgba(0,0,0,0.5)',
+                          '&:hover': {
+                            bgcolor: 'rgba(0,0,0,0.7)'
+                          }
+                        }}
+                      >
+                        <DeleteIcon sx={{ color: 'white' }} />
+                      </IconButton>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          )}
+
+          {convertedFiles.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Imágenes convertidas:
+              </Typography>
+              <Grid container spacing={2}>
+                {convertedFiles.map((convertedFile) => (
+                  <Grid item xs={12} sm={6} md={4} key={convertedFile.id}>
+                    <Paper 
+                      elevation={0} 
+                      sx={{ 
+                        p: 1, 
+                        border: '1px solid #e0e0e0',
+                        borderRadius: 1
+                      }}
+                    >
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="body2" noWrap>
+                          {convertedFile.file.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {(convertedFile.info.convertedSize / 1024).toFixed(1)} KB
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {convertedFile.info.width}x{convertedFile.info.height}
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<DownloadIcon />}
+                        onClick={() => handleDownload(convertedFile)}
+                        fullWidth
+                      >
+                        Descargar
+                      </Button>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
             </Box>
           )}
         </Paper>
@@ -199,7 +292,7 @@ function ImageConverter() {
             variant="contained"
             fullWidth
             onClick={handleConvert}
-            disabled={!selectedFiles || !targetFormat || loading}
+            disabled={!selectedFiles.length || !targetFormat || loading}
           >
             {loading ? <CircularProgress size={24} /> : 'Convertir'}
           </Button>
